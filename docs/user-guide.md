@@ -60,10 +60,19 @@ Tabs: **Visits** (everyone who checked in), **Expected visitors**, **Blocked**, 
   your own dates. On a wide screen the list is a table you can sort; tap a visit to open it.
 - **A visit** shows the details, photo, ID image, signature and devices. From there:
   - **Check out**: marks them as gone and ends their Wi-Fi (unless an admin turned that off).
-  - **End Wi-Fi access**: their guest pass or personal password stops working now. A shared password can't be ended
-    for one person.
+  - **End Wi-Fi access**: their guest pass or personal password is deleted in RUCKUS One, and their devices that are
+    still on the Wi-Fi are disconnected, so they can't get back on. The visit shows how many were disconnected. (For
+    DPSK, the identity RUCKUS One keeps for the password is removed too.)
+    A shared password can't be ended for one person.
   - **Block this visitor**: they can't check in again with the same name, email or phone, and staff are alerted if
-    they try. Unblock them under the **Blocked** tab.
+    they try. **Also end their Wi-Fi access now** (ticked) ends their access and disconnects their devices. For a
+    personal password (DPSK) visitor, their identity is blocked in RUCKUS One instead of their password being deleted,
+    so they show as **Blocked** under **Clients > Identities**, where a property manager can see it and undo it.
+    Unblock them under the **Blocked** tab: their identity is unblocked too, and their Wi-Fi works again if their pass
+    hasn't run out. (Guest pass visitors aren't identities in RUCKUS One: their pass is deleted.)
+  - **Disconnect their devices** (once access has ended): disconnects their devices again, for example a phone that
+    was still connected. For a blocked DPSK visitor it also blocks their identity in RUCKUS One if that hasn't
+    happened yet.
   - Admins can also **Print badge**, **Email / Text Wi-Fi details** again (with the visitor's current password from
     RUCKUS One) and **Delete this visit**.
 
@@ -151,8 +160,11 @@ The settings page is grouped like this (on a wide screen there's a menu on the l
   changed shows as you typed it.
 - **Look**: light, dark or automatic; color scheme; logo (with size, and the location name under it if you like);
   background image. **Use this look on every kiosk** shares it, with the location name and headline, with all tablets.
-- **Location and screen**: the location name (used in messages and reports), the headline, and how soon the kiosk
-  clears itself.
+- **Location and screen**: the location name (used in messages and reports), the headline, how soon the kiosk
+  clears itself, and the **On-screen keyboard**: for touch screens that don't show their own keyboard, such as a
+  touch-screen PC. **Automatic** shows it on touch screens except iPads, Android tablets and phones (they have their
+  own); **Always show** or **Never show** overrides that. It's set on each device. It has number pads for phone
+  numbers and codes, `@` and `.com` for email, accented letters for names, and suggests hosts as visitors type.
 
 ### Arrivals and departures
 
@@ -207,6 +219,21 @@ The settings page is grouped like this (on a wide screen there's a menu on the l
 
 ### System
 
+- **Network**: the VM's address, gateway, DNS servers and time, and changing them:
+  - **DHCP** or a **Static address** (IP address, subnet mask, gateway). With DHCP, the form starts from the current
+    lease, so switching to static keeps the same address.
+  - **DNS servers** (up to 3) and **search domains**. With DHCP, leave DNS empty to use the servers from DHCP.
+  - **Time servers (NTP)**, up to 4. Empty: the ones from DHCP, else ntp.ubuntu.com. Two-step sign-in codes need the
+    right time.
+
+  Changing the address, gateway or DHCP/static has a safety net. Open the new address within 3 minutes, sign in, go to
+  **Network** and tap **Keep these settings**. Otherwise the VM goes back to its previous settings by itself, so a typo
+  can't lock you out. Before you keep them, the panel shows whether the gateway answers, names resolve and RUCKUS One
+  can be reached. DNS and time server changes apply straight away.
+
+  After an address change, open the new address on each tablet, add it to the home screen again and **pair it again**
+  (a browser keeps the pairing and the kiosk settings per address). The shared look comes back by itself; other kiosk
+  settings need setting again. The certificate follows the address, so it doesn't need installing again.
 - **Updates**: see [Updating](#updating).
 
 ---
@@ -240,7 +267,8 @@ installing. VMs older than 1.4.1 should run the update from a copy of the update
 |---|---|
 | `kiosk status`, `kiosk logs`, `kiosk restart` | Check, read the log of, or restart the Visitor Desk service. |
 | `kiosk address` | The VM's network addresses. |
-| `kiosk network` | DHCP or a static address (`kiosk network static <ip/prefix> <gateway> <dns,...>`). |
+| `kiosk network` | Shows the network settings; sets DHCP or a static address (`kiosk network static <ip/prefix> <gateway> <dns,...> [search domain]`, `kiosk network dhcp`) or the DNS servers (`kiosk network dns <servers>`). |
+| `kiosk ntp` | Shows the time servers and whether the clock is in sync; `kiosk ntp time.example.com,pool.ntp.org` sets them, `kiosk ntp default` goes back to the default. |
 | `kiosk setup-code` | The code to create the first admin from a browser. |
 | `kiosk create-admin` | Create the first admin here, no code needed. |
 | `kiosk reset-admin` | Removes admin users (keeps front desk users) when every admin is locked out. |
@@ -253,8 +281,8 @@ installing. VMs older than 1.4.1 should run the update from a copy of the update
   `scp kioskadmin@<vm>:visitor-desk-backup-*.enc .`. `kiosk restore <file>` works on this or a new VM (the current
   data is saved first).
 - Ubuntu installs security updates automatically when the VM has internet access.
-- Two-step sign-in codes depend on the correct time. The VM uses NTP (ntp.ubuntu.com); without internet, point it at
-  your own NTP server in `/etc/systemd/timesyncd.conf`.
+- Two-step sign-in codes depend on the correct time. The VM uses the time servers from DHCP, else ntp.ubuntu.com;
+  without internet, set your own under **Admin → Network** or with `kiosk ntp`.
 - A few RUCKUS One details can be tuned in `/opt/visitor-kiosk/config.json` (then `kiosk restart`):
   `deliveryMethodNames` (guest pass delivery names), `fallbackPhone` (RUCKUS One needs a phone number for guest users;
   use your front desk number if you hide the phone field) and `dpsk.expirationFormat` (`"date"` if DPSK expiry errors).
@@ -272,4 +300,6 @@ installing. VMs older than 1.4.1 should run the update from a copy of the update
 | Invite code "isn't valid" | It was already used, or it's not one of the visit's days. Check **Expected visitors**. |
 | The camera doesn't open | The tablet needs the kiosk certificate: open `http://<vm-address>/setup` on it once. |
 | No address on the VM console | No DHCP on that network: set a static address with `kiosk network`. |
+| Two-step sign-in codes are always refused | The VM's clock is off. **Admin → Network** (or `kiosk ntp`) shows whether it's in sync; set time servers it can reach. |
+| Tablets say "This kiosk isn't set up yet" after an address change | Pair each tablet again at the new address (**Kiosk tablets**). |
 | Check-ins fail after changing RUCKUS One credentials | **RUCKUS One connection**: enter the new client ID and secret and **Connect**. |
